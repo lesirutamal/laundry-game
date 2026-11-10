@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>汗抜き vs ドライ！クリーニング仕分けマスター</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=MURECHO:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'MURECHO', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        
+        .conveyor-bg {
+            background-color: #f3f4f6;
+            background-image: radial-gradient(#cbd5e1 2px, transparent 2px);
+            background-size: 16px 16px;
+        }
+
+        .bounce-in {
+            animation: bounceIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .shake {
+            animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0.3) translateY(40px); opacity: 0; }
+            70% { transform: scale(1.05) translateY(-5px); opacity: 1; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+            40%, 60% { transform: translate3d(6px, 0, 0); }
+        }
+
+        .sparkle {
+            position: absolute;
+            pointer-events: none;
+            animation: floatUp 0.8s ease-out forwards;
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-50px) scale(1.5); }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col items-center justify-center p-2 sm:p-4">
+
+    <!-- ゲームコンテナ -->
+    <div id="game-container" class="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border-4 border-slate-200 flex flex-col min-h-[620px] relative">
+        
+        <!-- ヘッダー（タイトル＆ステータス） -->
+        <header class="bg-teal-600 text-white p-3 text-center shadow-md relative z-10">
+            <div class="flex justify-between items-center text-sm font-bold mb-1 px-2">
+                <div class="flex items-center space-x-1 bg-teal-800/60 px-3 py-1 rounded-full">
+                    <span>ライフ:</span>
+                    <span id="lives-display" class="text-base tracking-widest">❤️❤️❤️</span>
+                </div>
+                <div class="bg-teal-800/60 px-3 py-1 rounded-full">
+                    <span>仕分け数: <span id="score-display" class="text-yellow-300 text-lg font-black">0</span> 着</span>
+                </div>
+            </div>
+            <h1 class="text-lg font-black tracking-wide text-teal-100 drop-shadow">🧦 汗抜き vs ドライ！仕分けマスター</h1>
+        </header>
+
+        <!-- メイン表示領域（スクリーンの切り替え） -->
+        <main class="flex-1 flex flex-col relative overflow-hidden bg-slate-50">
+            
+            <!-- 1. スタート画面 -->
+            <div id="start-screen" class="absolute inset-0 z-20 bg-gradient-to-b from-teal-500 to-cyan-600 text-white flex flex-col items-center justify-center p-6 text-center">
+                <div class="w-20 h-20 bg-white text-teal-600 rounded-full flex items-center justify-center text-4xl shadow-lg mb-3 bounce-in">
+                    👔
+                </div>
+                <h2 class="text-2xl font-black mb-1 text-yellow-300 drop-shadow">クリーニング仕分けマスター</h2>
+                <p class="text-xs leading-relaxed mb-5 bg-teal-700/50 p-3 rounded-xl text-teal-50 border border-teal-400/30 text-left">
+                    持ち込まれたお洋服の<b>「素材」</b>と<b>「汚れ」</b>を見極めよう！<br>
+                    ・<b>【ドライ】</b>：油汚れ、型崩れ注意素材<br>
+                    ・<b>【汗抜き】</b>：汗、臭い、水溶性の汚れ<br>
+                    ・<b>【🧪 シミ抜きを追加】</b>：赤ワインや血液、古い黄ばみ等の局所シミがある時オン！<br>
+                    ・<b>【🔍 ポケット確認】</b>：異物がある時は先にチェック！
+                </p>
+                <button onclick="startGame()" class="w-full py-3.5 bg-yellow-400 hover:bg-yellow-300 text-teal-950 font-black text-lg rounded-2xl shadow-lg transform active:scale-95 transition border-b-4 border-yellow-600">
+                    仕分けスタート！ 🚀
+                </button>
+            </div>
+
+            <!-- 2. ゲームプレイ画面 -->
+            <div id="play-screen" class="flex-1 flex flex-col justify-between p-3 conveyor-bg relative">
+                
+                <!-- 結果フィードバックオーバーレイ -->
+                <div id="feedback-overlay" class="hidden absolute inset-0 z-30 flex flex-col items-center justify-center p-4 bg-slate-900/85 text-white text-center rounded-2xl backdrop-blur-sm">
+                    <div id="feedback-icon" class="text-5xl mb-1">✨</div>
+                    <div id="feedback-title" class="text-xl font-black mb-1">大成功！</div>
+                    <p id="feedback-msg" class="text-xs bg-slate-800 p-3 rounded-xl border border-slate-700 my-2 max-w-xs text-slate-200 leading-relaxed text-left"></p>
+                    <button onclick="nextGarment()" class="mt-2 px-6 py-2.5 bg-teal-500 hover:bg-teal-400 text-white font-bold rounded-xl shadow border-b-4 border-teal-700 active:scale-95 transition text-sm">
+                        次のお洋服へ ➔
+                    </button>
+                </div>
+
+                <!-- お客さん＆衣類表示カード -->
+                <div id="garment-card" class="bg-white rounded-2xl p-3 shadow-md border-2 border-slate-200 flex flex-col items-center relative transition-all duration-300">
+                    
+                    <!-- ポケット警告バッジ（ある場合） -->
+                    <div id="pocket-badge" class="hidden absolute -top-3 -right-2 bg-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg animate-bounce border-2 border-white flex items-center space-x-1">
+                        <span>⚠️ ポケットに何か入ってる？</span>
+                    </div>
+
+                    <!-- 衣類アイコン -->
+                    <div id="garment-icon" class="text-5xl my-1 p-2.5 bg-slate-100 rounded-full border border-slate-200 shadow-inner">
+                        🧥
+                    </div>
+
+                    <!-- 衣類名 -->
+                    <h3 id="garment-name" class="text-base font-black text-slate-800 mb-2">ウールの冬物コート</h3>
+
+                    <!-- 詳細スペック情報 -->
+                    <div class="w-full space-y-1.5 text-xs">
+                        <div class="bg-amber-50 border border-amber-200 rounded-lg p-2 flex items-start space-x-2">
+                            <span class="bg-amber-500 text-white px-1.5 py-0.5 rounded font-bold shrink-0 text-[10px]">素材</span>
+                            <span id="garment-fabric" class="font-bold text-amber-900">ウール 100%</span>
+                        </div>
+                        <div class="bg-sky-50 border border-sky-200 rounded-lg p-2 flex items-start space-x-2">
+                            <span class="bg-sky-500 text-white px-1.5 py-0.5 rounded font-bold shrink-0 text-[10px]">状態</span>
+                            <span id="garment-status" class="font-bold text-sky-900">汗でゴワゴワして臭いも気になる</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- アクションボタン群 -->
+                <div class="space-y-2 mt-2">
+                    <!-- ポケットチェック ＆ シミ抜きトグル -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="pocket-btn" onclick="checkPocket()" class="py-2 px-2 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-white font-bold rounded-xl shadow border-b-2 border-amber-700 flex items-center justify-center space-x-1 text-xs transition transform active:scale-95">
+                            <span>🔍 ポケット確認</span>
+                        </button>
+                        
+                        <!-- シミ抜きオプション（トグルボタン） -->
+                        <button id="stain-toggle-btn" onclick="toggleStainOption()" class="py-2 px-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl shadow border-b-2 border-slate-400 flex items-center justify-center space-x-1 text-xs transition transform active:scale-95">
+                            <span id="stain-checkbox-icon">⬜</span>
+                            <span>🧪 シミ抜きを追加</span>
+                        </button>
+                    </div>
+
+                    <!-- 仕分けメインボタン2種 -->
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <button onclick="processClean('dry')" class="py-3.5 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white rounded-2xl shadow-lg border-b-4 border-indigo-900 flex flex-col items-center justify-center transition transform active:scale-95">
+                            <span class="text-xl mb-0.5">👔</span>
+                            <span class="font-black text-sm">ドライ</span>
+                            <span class="text-[9px] text-indigo-200 font-normal">油汚れ・型崩れ防止</span>
+                        </button>
+
+                        <button onclick="processClean('wet')" class="py-3.5 bg-cyan-500 hover:bg-cyan-400 active:bg-cyan-600 text-white rounded-2xl shadow-lg border-b-4 border-cyan-700 flex flex-col items-center justify-center transition transform active:scale-95">
+                            <span class="text-xl mb-0.5">💦</span>
+                            <span class="font-black text-sm">汗抜き</span>
+                            <span class="text-[9px] text-cyan-100 font-normal">水溶性の汗・ニオイ除去</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. ゲームオーバー画面 -->
+            <div id="gameover-screen" class="hidden absolute inset-0 z-40 bg-slate-900 text-white flex flex-col items-center justify-center p-6 text-center">
+                <div class="text-5xl mb-2">😭</div>
+                <h2 class="text-2xl font-black text-pink-500 mb-1">ゲームオーバー！</h2>
+                <p class="text-xs text-slate-400 mb-4">ライフがなくなってしまいました…</p>
+                
+                <div class="bg-slate-800 w-full p-4 rounded-2xl border border-slate-700 mb-6">
+                    <div class="text-xs text-slate-400 mb-1">今回の成績</div>
+                    <div class="text-3xl font-black text-yellow-400 mb-2"><span id="final-score">0</span> 着成功</div>
+                    <div class="inline-block bg-teal-900 text-teal-200 px-3 py-1 rounded-full text-xs font-bold border border-teal-500/30">
+                        称号: <span id="final-title" class="text-white">新人アルバイト</span>
+                    </div>
+                </div>
+
+                <button onclick="startGame()" class="w-full py-3.5 bg-teal-500 hover:bg-teal-400 text-white font-black text-base rounded-2xl shadow-lg border-b-4 border-teal-700 active:scale-95 transition">
+                    もう一度挑戦する！ 🔄
+                </button>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        // Web Audio API
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            if (type === 'success') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.1);
+                osc.frequency.setValueAtTime(783.99, now + 0.2);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } else if (type === 'fail') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.setValueAtTime(164.81, now + 0.15);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } else if (type === 'click') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(400, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                osc.start(now);
+                osc.stop(now + 0.08);
+            } else if (type === 'item') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, now);
+                osc.frequency.setValueAtTime(880, now + 0.1);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            }
+        }
+
+        // 100種類以上の組合せを生成するジェネレータデータ
+        const garmentCategories = [
+            { name: "学生服（学ラン）", icon: "👔" },
+            { name: "セーラー服", icon: "👚" },
+            { name: "プリーツスカート", icon: "👗" },
+            { name: "ビジネススラックス", icon: "👖" },
+            { name: "夏の営業スーツ", icon: "💼" },
+            { name: "礼服・喪服", icon: "👔" },
+            { name: "タキシードジャケット", icon: "🤵" },
+            { name: "パーティードレス", icon: "👗" },
+            { name: "シルクブラウス", icon: "👚" },
+            { name: "トレンチコート", icon: "🧥" },
+            { name: "ウールロングコート", icon: "🧥" },
+            { name: "高級ダウンジャケット", icon: "🧥" },
+            { name: "モヘアニットセーター", icon: "🧶" },
+            { name: "カシミヤカーディガン", icon: "🧥" },
+            { name: "着物風羽織りジャケット", icon: "👘" },
+            { name: "事務服ベスト", icon: "🎽" },
+            { name: "ポロシャツ", icon: "👕" },
+            { name: "スウェットパーカー", icon: "🧥" },
+            { name: "レザーライダース", icon: "🧥" },
+            { name: "チノパンツ", icon: "👖" }
+        ];
+
+        const fabricTypes = [
+            { name: "ウール 100%", delicate: true, allowWetForSweat: true },
+            { name: "絹（シルク） 100%", delicate: true, allowWetForSweat: false },
+            { name: "レーヨン 100%（水厳禁）", delicate: true, allowWetForSweat: false },
+            { name: "カシミヤ 100%", delicate: true, allowWetForSweat: false },
+            { name: "本革（レザー）", delicate: true, allowWetForSweat: false },
+            { name: "綿（コットン） 100%", delicate: false, allowWetForSweat: true },
+            { name: "ポリエステル 100%", delicate: false, allowWetForSweat: true },
+            { name: "麻（リネン） 100%", delicate: false, allowWetForSweat: true },
+            { name: "ウール 50% / ポリ 50%", delicate: true, allowWetForSweat: true },
+            { name: "ナイロン（ダウン中綿）", delicate: true, allowWetForSweat: true }
+        ];
+
+        // 汚れの条件（シミ抜きの有無、洗いの相性を決定）
+        const conditionTypes = [
+            { text: "夏の着用で全体的に汗臭くゴワゴワする", type: "sweat", needsStain: false },
+            { text: "スポーツをして大量の汗をかいた", type: "sweat", needsStain: false },
+            { text: "衿元に汗ジミと皮脂汚れが固まっている", type: "sweat", needsStain: false },
+            { text: "焼肉の煙と油脂汚れが全体に付着した", type: "oil", needsStain: false },
+            { text: "全体的にうっすら皮脂とホコリで汚れている", type: "oil", needsStain: false },
+            { text: "胸元に赤ワインをこぼして染みになった", type: "stain", stainName: "赤ワインのシミ", needsStain: true },
+            { text: "衿元に口紅のベタつき汚れがついている", type: "stain", stainName: "口紅のシミ", needsStain: true },
+            { text: "ランチでカレーが飛び散ってしまった", type: "stain", stainName: "カレーのシミ", needsStain: true },
+            { text: "胸ポケットの中でボールペンがインク漏れした", type: "stain", stainName: "インクのシミ", needsStain: true },
+            { text: "脇の下に古い黄ばみシミが残っている", type: "stain", stainName: "古い黄ばみ", needsStain: true },
+            { text: "転んでひざ部分に血液の染みがついた", type: "stain", stainName: "血液のシミ", needsStain: true },
+            { text: "醤油の大きな食べこぼしシミがある", type: "stain", stainName: "醤油のシミ", needsStain: true }
+        ];
+
+        const pocketItems = [
+            "ポケットから【くしゃくしゃのティッシュ】が出てきた！",
+            "ポケットから【ボールペン】が出てきた！",
+            "ポケットから【レシートと飴玉】が出てきた！",
+            "ポケットから【自宅のカギ】が出てきた！"
+        ];
+
+        // ゲーム状態
+        let score = 0;
+        let lives = 3;
+        let currentGarment = null;
+        let hasPocketItem = false;
+        let pocketChecked = false;
+        let isStainOptionActive = false;
+
+        // UIエレメント
+        const startScreen = document.getElementById('start-screen');
+        const playScreen = document.getElementById('play-screen');
+        const gameoverScreen = document.getElementById('gameover-screen');
+        const feedbackOverlay = document.getElementById('feedback-overlay');
+        
+        const scoreDisplay = document.getElementById('score-display');
+        const livesDisplay = document.getElementById('lives-display');
+
+        const garmentCard = document.getElementById('garment-card');
+        const garmentIcon = document.getElementById('garment-icon');
+        const garmentName = document.getElementById('garment-name');
+        const garmentFabric = document.getElementById('garment-fabric');
+        const garmentStatus = document.getElementById('garment-status');
+        const pocketBadge = document.getElementById('pocket-badge');
+
+        const stainToggleBtn = document.getElementById('stain-toggle-btn');
+        const stainCheckboxIcon = document.getElementById('stain-checkbox-icon');
+
+        const feedbackIcon = document.getElementById('feedback-icon');
+        const feedbackTitle = document.getElementById('feedback-title');
+        const feedbackMsg = document.getElementById('feedback-msg');
+
+        // スタート
+        function startGame() {
+            playSound('click');
+            score = 0;
+            lives = 3;
+            updateStatusDisplay();
+
+            startScreen.classList.add('hidden');
+            gameoverScreen.classList.add('hidden');
+            feedbackOverlay.classList.add('hidden');
+
+            loadNextGarment();
+        }
+
+        function updateStatusDisplay() {
+            scoreDisplay.textContent = score;
+            let heartStr = '';
+            for (let i = 0; i < 3; i++) {
+                heartStr += (i < lives) ? '❤️' : '🖤';
+            }
+            livesDisplay.textContent = heartStr;
+        }
+
+        // シミ抜きトグルボタンの処理
+        function toggleStainOption() {
+            playSound('click');
+            isStainOptionActive = !isStainOptionActive;
+            if (isStainOptionActive) {
+                stainCheckboxIcon.textContent = "✅";
+                stainToggleBtn.classList.remove('bg-slate-200', 'text-slate-700', 'border-slate-400');
+                stainToggleBtn.classList.add('bg-purple-600', 'text-white', 'border-purple-800');
+            } else {
+                stainCheckboxIcon.textContent = "⬜";
+                stainToggleBtn.classList.remove('bg-purple-600', 'text-white', 'border-purple-800');
+                stainToggleBtn.classList.add('bg-slate-200', 'text-slate-700', 'border-slate-400');
+            }
+        }
+
+        // 100種類以上の服を自動生成するロジック
+        function generateRandomGarment() {
+            const cat = garmentCategories[Math.floor(Math.random() * garmentCategories.length)];
+            const fab = fabricTypes[Math.floor(Math.random() * fabricTypes.length)];
+            const cond = conditionTypes[Math.floor(Math.random() * conditionTypes.length)];
+
+            // 正解判定の決定ルール
+            let correctClean = "dry";
+            let explanation = "";
+
+            if (cond.type === "sweat") {
+                if (fab.allowWetForSweat) {
+                    correctClean = "wet";
+                    explanation = `${fab.name}の汗や塩分・ニオイをスッキリ落とすには「汗抜き（ダブル洗い）」が最適です！`;
+                } else {
+                    correctClean = "dry";
+                    explanation = `${fab.name}は水洗いすると縮んだり傷むため、汗が気になっても「ドライ」で保護洗いするのが正解です！`;
+                }
+            } else if (cond.type === "stain") {
+                // シミの場合は素材が水洗可能かつ大汗なら汗抜き、基本はドライ
+                if (fab.allowWetForSweat && Math.random() < 0.3) {
+                    correctClean = "wet";
+                    explanation = `${cond.stainName}には「🧪 シミ抜き追加」が必須！洗いは汗と汚れを落とす「汗抜き」が適切です。`;
+                } else {
+                    correctClean = "dry";
+                    explanation = `${cond.stainName}の除去には「🧪 シミ抜き追加」処理が必要です！生地を傷めない「ドライ」とセットでキレイになります。`;
+                }
+            } else { // oil または 通常
+                correctClean = "dry";
+                explanation = `皮脂や油汚れ、型崩れを防ぎたい${cat.name}（${fab.name}）には「ドライクリーニング」が正解です！`;
+            }
+
+            return {
+                name: `${fab.name.split(' ')[0]}の${cat.name}`,
+                icon: cat.icon,
+                fabric: fab.name,
+                status: cond.text,
+                correctClean: correctClean,
+                needsStain: cond.needsStain,
+                explanation: explanation
+            };
+        }
+
+        function loadNextGarment() {
+            feedbackOverlay.classList.add('hidden');
+            
+            // シミ抜きトグルをリセット
+            isStainOptionActive = false;
+            stainCheckboxIcon.textContent = "⬜";
+            stainToggleBtn.classList.remove('bg-purple-600', 'text-white', 'border-purple-800');
+            stainToggleBtn.classList.add('bg-slate-200', 'text-slate-700', 'border-slate-400');
+
+            // 服をランダム生成
+            currentGarment = generateRandomGarment();
+
+            // 30%の確率でポケットに異物
+            hasPocketItem = Math.random() < 0.3;
+            pocketChecked = false;
+
+            garmentCard.classList.remove('bounce-in', 'shake');
+            void garmentCard.offsetWidth;
+            garmentCard.classList.add('bounce-in');
+
+            garmentIcon.textContent = currentGarment.icon;
+            garmentName.textContent = currentGarment.name;
+            garmentFabric.textContent = currentGarment.fabric;
+            garmentStatus.textContent = currentGarment.status;
+
+            if (hasPocketItem) {
+                pocketBadge.classList.remove('hidden');
+            } else {
+                pocketBadge.classList.add('hidden');
+            }
+        }
+
+        function checkPocket() {
+            if (pocketChecked) return;
+            playSound('item');
+            
+            if (hasPocketItem) {
+                const randomItem = pocketItems[Math.floor(Math.random() * pocketItems.length)];
+                alert(`🔍 ${randomItem}\nしっかり取り出しました！ナイスチェック！`);
+                hasPocketItem = false;
+                pocketBadge.classList.add('hidden');
+            } else {
+                alert("🔍 ポケットを確認しました。何も入っていません！");
+            }
+            pocketChecked = true;
+        }
+
+        function processClean(userCleanChoice) {
+            // 1. ポケット確認の漏れチェック
+            if (hasPocketItem) {
+                playSound('fail');
+                garmentCard.classList.add('shake');
+                lives--;
+                updateStatusDisplay();
+                
+                showFeedback(
+                    '💥',
+                    'ポケットの異物が爆発！',
+                    'ポケットの異物を取り忘れたため、洗濯機の中で大惨事に…！【🔍 ポケット確認】をお忘れなく！'
+                );
+                return;
+            }
+
+            // 2. シミ抜きオプションのチェック
+            const stainCorrect = (isStainOptionActive === currentGarment.needsStain);
+            const cleanCorrect = (userCleanChoice === currentGarment.correctClean);
+
+            if (stainCorrect && cleanCorrect) {
+                playSound('success');
+                score++;
+                updateStatusDisplay();
+                
+                let bonusMsg = currentGarment.needsStain ? "🧪「シミ抜き追加」もバッチリ見抜きました！" : "";
+                showFeedback(
+                    '✨',
+                    '完璧な仕分け！',
+                    `${bonusMsg}\n${currentGarment.explanation}`
+                );
+            } else {
+                playSound('fail');
+                garmentCard.classList.add('shake');
+                lives--;
+                updateStatusDisplay();
+
+                let failReason = "";
+                if (!stainCorrect && currentGarment.needsStain) {
+                    failReason = "⚠️ 頑固な局所シミがあるのに「🧪 シミ抜き追加」がチェックされていませんでした！";
+                } else if (!stainCorrect && !currentGarment.needsStain) {
+                    failReason = "⚠️ シミ抜き不要な服に「🧪 シミ抜き追加」をつけて過剰な処理になってしまいました！";
+                } else {
+                    failReason = "⚠️ 洗い方（ドライ vs 汗抜き）の選択が正しくありませんでした。";
+                }
+
+                showFeedback(
+                    '❌',
+                    '仕分けミス…！',
+                    `${failReason}\n\n💡【正解の解説】\n${currentGarment.explanation}`
+                );
+            }
+        }
+
+        function showFeedback(icon, title, msg) {
+            feedbackIcon.textContent = icon;
+            feedbackTitle.textContent = title;
+            feedbackMsg.textContent = msg;
+            feedbackOverlay.classList.remove('hidden');
+
+            const nextBtn = feedbackOverlay.querySelector('button');
+            if (lives <= 0) {
+                nextBtn.onclick = showGameOver;
+            } else {
+                nextBtn.onclick = () => {
+                    playSound('click');
+                    loadNextGarment();
+                };
+            }
+        }
+
+        function nextGarment() {
+            playSound('click');
+            loadNextGarment();
+        }
+
+        function showGameOver() {
+            playSound('fail');
+            feedbackOverlay.classList.add('hidden');
+            gameoverScreen.classList.remove('hidden');
+
+            document.getElementById('final-score').textContent = score;
+            
+            let title = "新人アルバイト";
+            if (score >= 20) title = "👑 伝説のクリーニング工場長";
+            else if (score >= 12) title = "⭐ 洗濯の達人";
+            else if (score >= 7) title = "👔 ベテラン受付スタッフ";
+            else if (score >= 3) title = "🐥 一人前スタッフ";
+
+            document.getElementById('final-title').textContent = title;
+        }
+    </script>
+</body>
+</html>
